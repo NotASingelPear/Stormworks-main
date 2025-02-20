@@ -1,0 +1,134 @@
+--------------------------------Main script
+
+
+lowestDetectable, highestDetectable = 10, 3999
+maxPoints = property.getNumber("Maximum datapoints") or 1000
+
+gN = input.getNumber
+sN = output.setNumber
+
+P = {}
+record = {}
+
+function onTick()
+	
+	run = input.getBool(3)
+	draught = 0 --
+	gridFilter = 10
+	heightFilter = 1
+	rec_size = 100
+	
+	
+	if run then
+		pos = {
+	    	x = gN(1),
+	    	y = gN(3),		--switched in physics sensor
+	    	z = gN(2)
+	    }
+	    -- Looking towards laser sensor from behind
+		roll = gN(4)-- Up is positive
+		pitch = gN(5)-- Left turn is positive
+		azimuth = -gN(6)+math.pi/2-- Clockwise rotation is positive				
+		
+		sN(1, pos.x)
+		sN(2, pos.z)
+		sN(3, pos.y)
+		sN(4, roll)
+		sN(5, pitch)
+		sN(6, azimuth)
+					
+		vector = {
+				right_noRoll = {
+					x = math.cos(azimuth - math.pi/2),
+					y = math.sin(azimuth - math.pi/2),
+					z = 0
+				},
+				up_noRoll = {
+					x = math.cos(azimuth + math.pi) * math.sin(pitch),
+					y = math.sin(azimuth + math.pi) * math.sin(pitch),
+					z = math.cos(pitch)
+				}
+			}
+		
+		vector.up = {
+			x = vector.up_noRoll.x * math.cos(roll) + vector.right_noRoll.x * math.sin(roll),
+			y = vector.up_noRoll.y * math.cos(roll) + vector.right_noRoll.y * math.sin(roll),
+			z = vector.up_noRoll.z * math.cos(roll) + vector.right_noRoll.z * math.sin(roll)
+		}
+		
+		vector.right = {
+			x = vector.up_noRoll.x * math.sin(-roll) + vector.right_noRoll.x * math.cos(-roll),
+			y = vector.up_noRoll.y * math.sin(-roll) + vector.right_noRoll.y * math.cos(-roll),
+			z = vector.up_noRoll.z * math.sin(-roll) + vector.right_noRoll.z * math.cos(-roll)
+		}
+		
+		startCh = 9
+		for i = 0, 7 do
+			measuredDis = gN(startCh + i * 3)
+			if measuredDis >= lowestDetectable and measuredDis <= highestDetectable then
+				aim = {
+					x = gN(startCh + 1 + i * 3) * math.pi/4,
+					y = gN(startCh + 2 + i * 3) * math.pi/4
+			    }
+				aimXstep = math.tan(aim.x)
+				aimYstep = math.tan(aim.y)
+				aimAngle = math.atan(math.sqrt(aimXstep^2 + aimYstep^2))
+				disSelfToPlaneCenter = measuredDis * math.cos(aimAngle)
+			    
+				planeCenter = {
+					x = pos.x + math.cos(azimuth) * math.cos(pitch) * disSelfToPlaneCenter,
+			    	y = pos.y + math.sin(azimuth) * math.cos(pitch) * disSelfToPlaneCenter,
+			    	z = pos.z + math.sin(pitch) * disSelfToPlaneCenter
+			    }
+			    
+			    measuredPos = {
+			    	x = planeCenter.x + (vector.up.x * aimYstep + vector.right.x * aimXstep) * disSelfToPlaneCenter,
+			    	y = planeCenter.y + (vector.up.y * aimYstep + vector.right.y * aimXstep) * disSelfToPlaneCenter,
+			    	z = math.max(0, planeCenter.z + (vector.up.z * aimYstep + vector.right.z * aimXstep) * disSelfToPlaneCenter)
+			    }
+			    
+			    filteredPos = {
+			    	x = (measuredPos.x + gridFilter/2)  // gridFilter * gridFilter,
+			    	y = (measuredPos.y + gridFilter/2) // gridFilter * gridFilter,
+			    	z = (measuredPos.z + heightFilter/2) // heightFilter * heightFilter
+			    }
+			    
+		    	if not P[filteredPos.x] then
+					P[filteredPos.x] = {}
+				end
+				
+				if P[filteredPos.x][filteredPos.y] then
+					if P[filteredPos.x][filteredPos.y].depth > draught-0.5 then
+						P[filteredPos.x][filteredPos.y].depth = filteredPos.z
+						P[filteredPos.x][filteredPos.y].readings = 10
+					elseif P[filteredPos.x][filteredPos.y].readings < 10 then
+						P[filteredPos.x][filteredPos.y].readings = P[filteredPos.x][filteredPos.y].readings + 1
+						P[filteredPos.x][filteredPos.y].read_sum = P[filteredPos.x][filteredPos.y].read_sum + z
+						P[filteredPos.x][filteredPos.y].depth = P[filteredPos.x][filteredPos.y].read_sum / P[filteredPos.x][filteredPos.y].readings
+					end
+				else
+					P[filteredPos.x][filteredPos.y] = {depth = filteredPos.z, readings = 1, read_sum = filteredPos.z}
+					if filteredPos.z > draught-0.5 then P[filteredPos.x][filteredPos.y].readings = 10 end
+					table.insert(record, 1, {filteredPos.x, filteredPos.y})
+					if #record > rec_size then
+						P[ record[rec_size+1][1] ][ record[rec_size+1][2] ] = nil
+						record[rec_size+1] = nil
+					end
+				end
+			end
+		end
+	else
+		P = {}
+		record = {}
+	end
+end
+
+
+function onDraw()
+	
+end
+
+
+
+
+
