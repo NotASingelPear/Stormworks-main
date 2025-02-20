@@ -1,34 +1,113 @@
 --------------------------------Main script
 
-
 lowestDetectable, highestDetectable = 10, 3999
 maxPoints = property.getNumber("Maximum datapoints") or 1000
 
 gN = input.getNumber
 sN = output.setNumber
+sC = screen.setColor
+dRF = screen.drawRectF
+f = math.floor
+pi2 = math.pi/2
+cos = math.cos
+sin = math.sin
+set_range = 350
+
+
+
+drawCenterY = -50
+pixelRadius = 70
+FOV = math.rad(45)
+cutoffY = 30
+arcDivisions = 55
+vehicleScreenPosY = drawCenterY + pixelRadius - cutoffY		--Relative to drawCenterY (center of radar display calculation)
+
+
 
 P = {}
 record = {}
 
+
+function check(x, y, w, h)
+	return touchX >= x and touchX <= x + (w or 1) and touchY >= y and touchY <= y + (h or 1)
+end
+
+function Round10(n)
+	return f(( n )/10+.5)*10
+end
+
+function color(n)
+	if n < 0 then
+		sC(255,0,0)
+	elseif n <= 1 then	
+		if n < 1/8 then	
+			a={255,255,0}	--yellow
+			b={0,255,0}
+		elseif n<2/8 then
+			a={0,255,0}	
+			b={0,153,76}	--dark green
+		elseif n<3/8 then
+			a={0,153,76}
+			b={0,255,255}	--light blue
+		elseif n<4/8 then
+			a={0,255,255}
+			b={0,76,153}	--blue
+		elseif n<5/8 then
+			a={0,76,153}
+			b={0,0,255}		--dark blue
+		elseif n<6/8 then
+			a={0,0,255}
+			b={76,0,153}	--purple
+		elseif n<7/8 then
+			a={76,0,153}
+			b={255,0,255}	--pink
+		else
+			a={255,0,255}
+			b={80,0,50}		--dark pink
+		end
+		
+		dr=b[1]-a[1]
+		dg=b[2]-a[2]
+		db=b[3]-a[3]
+
+		k=n/(1/8) - f(n/(1/8))
+		sC(
+			a[1] + dr*k, 
+			a[2] + dg*k,
+			a[3] + db*k
+		)
+	else
+		sC(0,0,0)
+	end
+end
+
+
+
 function onTick()
-	
+	isPressing = input.getBool(1)
+	touchX = input.getNumber(3)
+	touchY = input.getNumber(4)
+	hi_boundary,lo_boundary = 0, -200--gN(1),gN(2)
 	run = input.getBool(3)
 	draught = 0 --
 	gridFilter = 10
 	heightFilter = 1
-	rec_size = 100
+	rec_size = 2
 	
-	
-	if run then
-		pos = {
+	pos = {
 	    	x = gN(1),
-	    	y = gN(3),		--switched in physics sensor
-	    	z = gN(2)
+	    	y = 0,--gN(3),		--switched in physics sensor
+	    	z = 0--gN(2)
 	    }
-	    -- Looking towards laser sensor from behind
-		roll = gN(4)-- Up is positive
-		pitch = gN(5)-- Left turn is positive
-		azimuth = -gN(6)+math.pi/2-- Clockwise rotation is positive				
+    -- Looking towards laser sensor from behind
+	roll = gN(4)-- Up is positive
+	pitch = gN(5)-- Left turn is positive
+	azimuth = 0-- -gN(6)+math.pi/2-- Clockwise rotation is positive	
+	
+	test = gN(6)
+	
+	if false then--run then
+					
 		
 		sN(1, pos.x)
 		sN(2, pos.z)
@@ -64,7 +143,7 @@ function onTick()
 		
 		startCh = 9
 		for i = 0, 7 do
-			measuredDis = gN(startCh + i * 3)
+			measuredDis = 100--gN(startCh + i * 3)
 			if measuredDis >= lowestDetectable and measuredDis <= highestDetectable then
 				aim = {
 					x = gN(startCh + 1 + i * 3) * math.pi/4,
@@ -114,6 +193,7 @@ function onTick()
 						P[ record[rec_size+1][1] ][ record[rec_size+1][2] ] = nil
 						record[rec_size+1] = nil
 					end
+					-- print(filteredPos.x, filteredPos.y, filteredPos.z)
 				end
 			end
 		end
@@ -121,10 +201,130 @@ function onTick()
 		P = {}
 		record = {}
 	end
+	
+	P = {[0] = {[100] = 0}}
+
 end
 
 
 function onDraw()
+	w, h = screen.getWidth()/2, screen.getHeight()/2
+	
+	if run then
+		-- r = 35
+		-- for i=0,15 do
+		-- 	color(i/15-0.01)
+		-- 	dRF(5, 19+i , 1, 1)	
+		-- end
+		
+		-- toDraw = {}
+		-- for i=pi2+0.625, pi2-0.625, (-1 / r)*0.71 do
+		-- 	cos_i = cos(i)
+		-- 	sin_i = sin(i)
+		-- 	for j=0,r do
+		-- 		x = f( cos_i*j +.5)
+		-- 		y = f( sin_i*j +.5)
+				
+		-- 		if not toDraw[x] then
+		-- 			toDraw[x] = {}
+		-- 		end
+				
+		-- 		if not toDraw[x][y] then
+		-- 			dis = j*(set_range/35)
+		-- 			req_x = Round10( pos.x + cos(-azimuth + i) * dis)
+		-- 			req_y = Round10( pos.y + sin(-azimuth + i) * dis)
+					
+		-- 			if P[req_x] and P[req_x][req_y] then
+		-- 				req_depth = P[req_x][req_y].z-zero_ref
+		-- 				if req_depth > draught-0.5 then
+		-- 					color(-1)
+		-- 				else
+		-- 					color( (req_depth - hi_boundary) / (lo_boundary - hi_boundary) )
+		-- 				end
+		-- 			else
+		-- 				sC(30,30,30)
+		-- 			end
+		-- 			-- dRF( 32 + x, 38 - y, 1, 1)
+		-- 			toDraw[x][y] = true
+		-- 		end
+		-- 	end
+		-- end
+		
+
+	--	zoom = pixelRadius - cutoffY
+		
+		
+		for angle = -FOV/2, FOV/2, FOV/arcDivisions do
+			angle = angle + math.pi/2
+			for drawLength = pixelRadius - cutoffY, pixelRadius, 0.5 do
+				if math.sin(angle) * drawLength > pixelRadius - cutoffY then
+					screenPos = {
+						x = math.cos(angle) * drawLength, 
+						y = drawCenterY + (math.sin(angle) * drawLength)
+					}
+					
+					geoPos = {
+						x = (pos.x + (math.cos(test) * (screenPos.x + cutoffY - pixelRadius) * 10) + gridFilter/2)  // gridFilter * gridFilter,
+						y = (pos.y + (math.sin(test) * (screenPos.y + cutoffY - pixelRadius) * 10) + gridFilter/2)  // gridFilter * gridFilter
+					}
+					
+					
+					if P[geoPos.x] and P[geoPos.x][geoPos.y] then
+						sC(0, 255, 0)
+						-- depth = P[geoPos.x][geoPos.y].depth---zero_ref
+						-- if depth > draught-0.5 then
+						-- 	color(-1)
+						-- else
+						-- 	color( (depth - hi_boundary) / (lo_boundary - hi_boundary) )
+						-- end
+					else
+						sC(30,30,30)
+					end
+					
+					
+					if isPressing and check(w + screenPos.x, h - screenPos.y) then--check(w + screenPos.x, h - screenPos.y) then
+						sC(255, 255, 255)
+						screen.drawText(2, h*2-10, string.format("%.0f", geoPos.x) .. ", " .. string.format("%.0f", geoPos.y))
+					end
+					screen.drawRectF(w + screenPos.x, h - screenPos.y, 1, 1)
+					
+				end
+			end
+		end
+		
+		
+		
+		-- coll_warn = false
+		-- for i=0,42 do
+		-- 	dis = (i/42)*set_range
+		-- 	req_x = Round10( pos.x + cos(pi2-azimuth) * dis )
+		-- 	req_y = Round10( pos.y + sin(pi2-azimuth) * dis )
+			
+		-- 	if P[req_x] and P[req_x][req_y] then
+		-- 		depth = P[req_x][req_y].z-zero_ref
+		-- 		if depth > set_depth then
+		-- 			if depth < draught-3 then
+		-- 				sC(0,255,0)
+		-- 			elseif depth > draught-0.5 then
+		-- 				if dis > 30 then
+		-- 					if (dis / speed) < warn_sec then
+		-- 						coll_warn = true
+		-- 					end
+		-- 				end
+		-- 				sC(255,0,0)
+		-- 			else
+		-- 				sC(255,255,0)
+		-- 			end
+		-- 			dRF(11 + i, 47 + 14*depth/set_depth, 1, 1)
+		-- 		end
+		-- 	end
+		-- end
+		
+	end
+	
+	
+	sC(255, 255, 255)
+	screen.drawTextBox(1, 1, w*2, 5, string.format("%.2f", test), 0, 0)
 	
 end
 
