@@ -670,7 +670,7 @@ end
 
 
 
-lowestDetectable, highestDetectable = 10, 3999
+lowestDetectable, highestDetectable = 10, 500
 maxPoints = property.getNumber("Maximum datapoints") or 1000
 
 gN = input.getNumber
@@ -792,7 +792,7 @@ function onTick()
 	draught = 0 --
 	gridFilter = 10
 	heightFilter = 1
-	rec_size = 2
+	rec_size = 10000
 	
 	pos = {
 	    	x = gN(1),
@@ -861,7 +861,7 @@ function onTick()
 			    measuredPos = {
 			    	x = planeCenter.x + (vector.up.x * aimYstep + vector.right.x * aimXstep) * disSelfToPlaneCenter,
 			    	y = planeCenter.y + (vector.up.y * aimYstep + vector.right.y * aimXstep) * disSelfToPlaneCenter,
-			    	z = math.max(0, planeCenter.z + (vector.up.z * aimYstep + vector.right.z * aimXstep) * disSelfToPlaneCenter)
+			    	z = math.min(0, planeCenter.z + (vector.up.z * aimYstep + vector.right.z * aimXstep) * disSelfToPlaneCenter)
 			    }
 			    
 			    filteredPos = {
@@ -874,14 +874,15 @@ function onTick()
 					P[filteredPos.x] = {}
 				end
 				
-				if P[filteredPos.x][filteredPos.y] then
+				if P[filteredPos.x][filteredPos.y] and P[filteredPos.x][filteredPos.y].readings < 10 then
 					if P[filteredPos.x][filteredPos.y].depth > draught-0.5 then
 						P[filteredPos.x][filteredPos.y].depth = filteredPos.z
 						P[filteredPos.x][filteredPos.y].readings = 10
-					elseif P[filteredPos.x][filteredPos.y].readings < 10 then
+					else
 						P[filteredPos.x][filteredPos.y].readings = P[filteredPos.x][filteredPos.y].readings + 1
-						P[filteredPos.x][filteredPos.y].read_sum = P[filteredPos.x][filteredPos.y].read_sum + z
+						P[filteredPos.x][filteredPos.y].read_sum = P[filteredPos.x][filteredPos.y].read_sum + filteredPos.z
 						P[filteredPos.x][filteredPos.y].depth = P[filteredPos.x][filteredPos.y].read_sum / P[filteredPos.x][filteredPos.y].readings
+						
 					end
 				else
 					P[filteredPos.x][filteredPos.y] = {depth = filteredPos.z, readings = 1, read_sum = filteredPos.z}
@@ -913,12 +914,12 @@ function onDraw()
 			--screen.drawRectF(w/2 + focuspoint.screenPosX, h/2 - focuspoint.screenPosY, 1, 1)
 			
 			worldPos = {
-				x = (0 + math.cos(azimuth + focuspoint.vesselAngle) * focuspoint.vesselDistUnits * 10 + gridFilter/2) // gridFilter * gridFilter,
-				y = (0 + math.sin(azimuth + focuspoint.vesselAngle) * focuspoint.vesselDistUnits * 10 + gridFilter/2) // gridFilter * gridFilter
+				x = (pos.x + math.cos(azimuth + focuspoint.vesselAngle) * focuspoint.vesselDistUnits * 10 + gridFilter/2) // gridFilter * gridFilter,
+				y = (pos.y + math.sin(azimuth + focuspoint.vesselAngle) * focuspoint.vesselDistUnits * 10 + gridFilter/2) // gridFilter * gridFilter
 			}
 			
 			if P[worldPos.x] and P[worldPos.x][worldPos.y] then
-				color(P[worldPos.x][worldPos.y] / lo_boundary)
+				color(P[worldPos.x][worldPos.y].depth / lo_boundary)
 				--sC(255, 0, 0)
 			else
 				sC(30,30,30)
@@ -963,10 +964,6 @@ function onDraw()
 		sC(255, 255, 255)
 		screen.drawTextBox(1, 1, w, 5, string.format("%.2f", azimuth), 0, 0)
 	end
-	
-	
-	
-	
 end
 
 
