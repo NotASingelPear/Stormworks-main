@@ -1,3 +1,119 @@
+New attempt 02.jan 26
+--https://lua.flaffipony.rocks/?id=x75EKMgxq6
+
+gN,sN=input.getNumber,output.setNumber
+
+
+function multiplyVector(vector, multiplier)
+	return {
+		x = vector.x * multiplier,
+		y = vector.y * multiplier,
+		z = vector.z * multiplier
+	}
+end
+
+function addVectors(...)
+	local result = {x = 0, y = 0, z = 0}
+	for _, vector in pairs({...}) do
+		result.x = result.x + vector.x
+		result.y = result.y + vector.y
+		result.z = result.z + vector.z
+	end
+	return result
+end
+
+
+function onTick()
+    pos = {
+    	x = gN(1),	--east
+    	y = gN(2),	--north
+    	z = gN(3),	--up
+    }
+    roll = gN(4)	--positive left
+    pitch = gN(5)	--positive up
+    azimuth = gN(6)	--positive left
+    
+    
+    
+    vector = {
+		right_noRoll = {
+			x = math.cos(azimuth),
+			y = math.sin(azimuth),
+			z = 0
+		},
+		up_noRoll = {
+			x = math.cos(azimuth + math.pi) * math.sin(pitch),
+			y = math.sin(azimuth + math.pi) * math.sin(pitch),
+			z = math.cos(pitch)
+		}
+	}
+		
+	vector.right = {
+		x = vector.up_noRoll.x * math.sin(roll) + vector.right_noRoll.x * math.cos(roll),
+		y = vector.up_noRoll.y * math.sin(roll) + vector.right_noRoll.y * math.cos(roll),
+		z = vector.up_noRoll.z * math.sin(roll) + vector.right_noRoll.z * math.cos(roll)
+	}
+	
+	vector.forward = {
+		x = math.cos(azimuth) * math.cos(pitch),
+    	y = math.sin(azimuth) * math.cos(pitch),
+    	z = math.sin(pitch)
+    }
+    
+	vector.up = {
+		x = vector.up_noRoll.x * math.cos(roll) + vector.right_noRoll.x * math.sin(roll),
+		y = vector.up_noRoll.y * math.cos(roll) + vector.right_noRoll.y * math.sin(roll),
+		z = vector.up_noRoll.z * math.cos(roll) + vector.right_noRoll.z * math.sin(roll)
+	}
+	
+	
+    for i = 1, 1 do
+	    angleX = gN(7) * math.pi/4
+	    angleY = gN(8) * math.pi/4
+	    measuredDis = gN(9)
+	    
+	    sensorRelative = {
+	    	x = math.sin(angleX) * math.cos(angleY) * measuredDis,	--right
+	    	y = math.cos(angleX) * math.cos(angleY) * measuredDis,	--forward
+		    z = math.sin(angleY) * measuredDis	--up
+		}
+		
+		measuredPos = addVectors(
+			pos,
+			multiplyVector(vector.right, sensorRelative.x),
+			multiplyVector(vector.forward, sensorRelative.y),
+			multiplyVector(vector.up, sensorRelative.z)
+		)
+		
+		print(i, measuredPos)
+    end
+    
+end
+
+function onDraw()
+    -- screen.drawText(1, 1, "RELX: " .. relativeX)
+    -- screen.drawText(1, 8, "RELY: " .. relativeY)
+   
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 --------------------------------Main script
 
 lowestDetectable, highestDetectable = 10, 3999
